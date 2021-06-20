@@ -1,0 +1,126 @@
+---
+title: "Coexpression analysis of yeast for gene prediction"
+author: "Mark Ziemann"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Intro
+
+
+```{r,pkgs}
+
+library("reshape2")
+
+```
+
+## Data download
+
+```{r,dl1}
+
+# accessions
+if (!file.exists("scerevisiae_accessions.tsv.bz2")) {
+  download.file("http://dee2.io/mx/scerevisiae_accessions.tsv.bz2",
+    destfile="scerevisiae_accessions.tsv.bz2")
+}
+
+# qc
+if (!file.exists("scerevisiae_qc.tsv.bz2")) {
+  download.file("http://dee2.io/mx/scerevisiae_qc.tsv.bz2",
+    destfile="scerevisiae_qc.tsv.bz2")
+}
+
+# gene level counts
+if (!file.exists("scerevisiae_se.tsv.bz2")) {
+  download.file("http://dee2.io/mx/scerevisiae_se.tsv.bz2",
+    destfile="scerevisiae_se.tsv.bz2")
+}
+
+
+```
+
+## Filter
+
+Here we filter for only runs that passed the QC.
+It might be a good idea to remove lowly expressed genes as well.
+
+```{r,filter1}
+
+acc <- read.csv("scerevisiae_accessions.tsv.bz2",header=TRUE,sep="\t")
+dim(acc)
+
+qc <- read.csv("scerevisiae_qc.tsv.bz2",header=FALSE,sep="\t")
+dim(qc)
+
+se <- read.csv("scerevisiae_se.tsv.bz2",header=FALSE,sep="\t")
+dim(se)
+
+qcpass <- qc[which(qc$V3=="PASS"),1]
+length(qcpass)
+
+se <- se[which(se$V1 %in% qcpass),]
+dim(se)
+
+se <- as.matrix(acast(se, V1~V2, value.var="V3"))
+dim(se)
+
+```
+
+## Aggregate SRA runs to experiments
+
+```{r,agg1}
+
+srx <- acc[,c(1,3)]
+sesrx <- merge(srx,se,by.x="SRR_accession",by.y=0)
+sesrx[,1] = NULL
+sesrx <- aggregate(. ~ SRX_accession , sesrx , sum)
+rownames(sesrx) <- sesrx[,1]
+sesrx[,1] = NULL
+se <- t(sesrx)
+rm(sesrx,set,srx)
+
+se[1:5,1:6]
+dim(se)
+
+```
+
+## PCA analysis
+
+No need to scale the data first.
+
+```{r,pca1}
+
+#x<-scale(read.table("CountMatrix.xls", row.names=1, header=TRUE))
+
+pc <- cmdscale(dist(t(se)),k=10)
+
+XMIN = min(pc[,1])*1.1
+XMAX = max(pc[,1])*1.1
+plot(pc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="sample-wise PCA")
+text(pc[,c(1,2)] , labels=colnames(se) )
+
+
+ipc <- cmdscale(dist(se),k=10)
+
+XMIN = min(ipc[,1])*1.1
+XMAX = max(ipc[,1])*1.1
+plot(ipc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="gene-wise PCA")
+text(ipc[,c(1,2)] , labels=rownames(se) )
+
+```
+
+
+
+## Session info
+
+```{r,sessioninfo}
+
+sessionInfo()
+
+```
