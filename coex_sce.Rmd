@@ -17,6 +17,7 @@ theme: cosmo
 ```{r,pkgs}
 
 library("reshape2")
+library(gplots)
 
 ```
 
@@ -42,6 +43,38 @@ if (!file.exists("scerevisiae_se.tsv.bz2")) {
     destfile="scerevisiae_se.tsv.bz2")
 }
 
+
+```
+
+## GO
+
+It looks like the server is not listening on the correct port.
+
+```{r,go1}
+
+# http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/README
+
+# http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/
+
+download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gaf.gz",
+  destfile="goa_yeast.gaf.gz")
+
+download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gpa.gz",
+  destfile="goa_yeast.gpa.gz")
+
+download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gpi.gz",
+  destfile="goa_yeast.gpi.gz")
+
+gaf <- readLines("goa_yeast.gaf.gz")
+gaf <- gaf[grep("!",gaf,invert=TRUE)]
+gaf <- strsplit(gaf,"\t")
+g <- sapply(gaf,"[[",3)
+go <- sapply(gaf,"[[",5)
+go <- cbind(g,go)
+go <- unique(go)
+
+# ontology must have 20 or more members
+go <- go[which( go[,2] %in% names(which(table(go[,2])>=20)) ),]
 
 ```
 
@@ -96,18 +129,15 @@ No need to scale the data first.
 
 ```{r,pca1}
 
-#x<-scale(read.table("CountMatrix.xls", row.names=1, header=TRUE))
-
 pc <- cmdscale(dist(t(se)),k=10)
-
+barplot(colMeans(abs(pc)),labels=1:ncol(pc), main="screeplot on samples")
 XMIN = min(pc[,1])*1.1
 XMAX = max(pc[,1])*1.1
 plot(pc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="sample-wise PCA")
 text(pc[,c(1,2)] , labels=colnames(se) )
 
-
 ipc <- cmdscale(dist(se),k=10)
-
+barplot(colMeans(abs(ipc)),labels=1:ncol(ipc), main="screeplot on genes")
 XMIN = min(ipc[,1])*1.1
 XMAX = max(ipc[,1])*1.1
 plot(ipc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="gene-wise PCA")
@@ -115,7 +145,81 @@ text(ipc[,c(1,2)] , labels=rownames(se) )
 
 ```
 
+## Set average pseudosample
 
+In this experiment, average the gene set expression values for the 100 genes and the find
+genes that correlate closely.
+Hopefully the sample genes are identified and there might be some new ones too.
+
+```{r,av1,fig.height=8,fig.width=8}
+
+# start with a random set
+tse <- t(se)
+tse <- tse[which(rowSums(tse)!=0),]
+ntse <- tse/colSums(tse)*1000000
+
+myset_name <- names(sample(table(go[,2]),1))
+myset <- go[which(go[,2] == myset_name),1]
+
+myset_ntse <- ntse[which(rownames(ntse) %in% myset),]
+myset_tntse <- t(myset_ntse)
+myset_mean <- colMeans(myset_ntse)
+tntse <- t(ntse)
+tntse <- cbind(myset_mean,tntse)
+tntse_cor <- cor(tntse)
+
+setcor <- tntse_cor[,1][1:n]
+setcor_n <- names(setcor)
+newgenes <- setcor_n[which(! setcor_n %in% myset)]
+newgenes_dat <- tntse[,which(colnames(tntse) %in% newgenes)]
+
+
+colnames(myset_tntse) <- paste(colnames(myset_tntse),"_orig",sep="")
+colnames(newgenes_dat) <- paste(colnames(newgenes_dat),"_new",sep=""  )
+
+merged <- cbind(myset_tntse,newgenes_dat)
+heatmap.2(cor(merged),scale="none",trace=FALSE)
+
+```
+
+## Set analysis
+
+Calculate the PC distance between all genes and the ones in the set.
+
+TODO:work out hypotenuse properly.
+
+```{r,set1}
+
+# start with a random one because GOA is down
+plot(ipc[,c(1,2)] , xlab="PC1", ylab="PC2", pch=19 , xlim=c(XMIN,XMAX) , main="gene-wise PCA")
+points( myset_ipc[,c(1,2)] , pch=19 , col="red"  )
+
+myset_cor <- correlate(t(myset_ipc))
+myset_cor[,1] = NULL
+myset_cor <- as.matrix(myset_cor)
+rownames(myset_cor) <- colnames(myset_cor)
+hist(myset_cor)
+summary(as.vector(myset_cor))
+
+dat <- apply(ipc , 1 , function(y) {
+  apply(myset_ipc , 1 , function(x) {
+    sum(abs(y - x ))
+  } )
+} )
+
+hist(apply(dat,2,median),xlim=c(0,1e6),breaks=1000)
+summary(apply(dat,2,median))
+
+
+```
+
+## Saveimage
+
+```{r,save}
+
+save.image("coex.Rdata")
+
+```
 
 ## Session info
 
