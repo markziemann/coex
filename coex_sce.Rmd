@@ -56,14 +56,20 @@ It looks like the server is not listening on the correct port.
 
 # http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/
 
-download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gaf.gz",
-  destfile="goa_yeast.gaf.gz")
+if (! file.exists("goa_yeast.gaf.gz") ) {
+  download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gaf.gz",
+    destfile="goa_yeast.gaf.gz")
+}
 
-download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gpa.gz",
-  destfile="goa_yeast.gpa.gz")
+if (! file.exists("goa_yeast.gpa.gz") ) {
+  download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gpa.gz",
+    destfile="goa_yeast.gpa.gz")
+}
 
-download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gpi.gz",
-  destfile="goa_yeast.gpi.gz")
+if (! file.exists("goa_yeast.gpi.gz") ) {
+  download.file("http://ftp.ebi.ac.uk/pub/databases/GO/goa/YEAST/goa_yeast.gpi.gz",
+    destfile="goa_yeast.gpi.gz")
+}
 
 gaf <- readLines("goa_yeast.gaf.gz")
 gaf <- gaf[grep("!",gaf,invert=TRUE)]
@@ -130,14 +136,14 @@ No need to scale the data first.
 ```{r,pca1}
 
 pc <- cmdscale(dist(t(se)),k=10)
-barplot(colMeans(abs(pc)),labels=1:ncol(pc), main="screeplot on samples")
+barplot(colMeans(abs(pc)),names.arg=1:ncol(pc), main="screeplot on samples")
 XMIN = min(pc[,1])*1.1
 XMAX = max(pc[,1])*1.1
 plot(pc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="sample-wise PCA")
 text(pc[,c(1,2)] , labels=colnames(se) )
 
 ipc <- cmdscale(dist(se),k=10)
-barplot(colMeans(abs(ipc)),labels=1:ncol(ipc), main="screeplot on genes")
+barplot(colMeans(abs(ipc)),names.arg=1:ncol(ipc), main="screeplot on genes")
 XMIN = min(ipc[,1])*1.1
 XMAX = max(ipc[,1])*1.1
 plot(ipc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="gene-wise PCA")
