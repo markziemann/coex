@@ -204,13 +204,20 @@ candidates <- lapply(sets, function(myset) {
     setq3 <- summary(res[which(names(res) %in% myset)])[5]
     cand <- res[which(! names(res) %in% myset)]
     cand <- cand[which(cand > setq3)]
+    cand <- cand[order(-cand)]
+    if ( length(cand) > 0 ) {
+      cand[order(-cand)]
+    }
   }
   return(cand)
 })
 
 names(candidates) <- gos
 
-lapply(candidate, write, "candidates.txt", append=TRUE, ncolumns=10000)
+saveRDS(object=candidates,file="coex_sce_candidates.rds")
+
+head(candidates)
+
 
 ```
 
@@ -246,7 +253,12 @@ TODO:work out hypotenuse properly.
 
 ```{r,set1}
 
-# start with a random one because GOA is down
+names(sets[1])
+
+myset=sets[[1]]
+
+myset_ipc <- ipc[which(rownames(ipc) %in% myset),]
+
 plot(ipc[,c(1,2)] , xlab="PC1", ylab="PC2", pch=19 , xlim=c(XMIN,XMAX) , main="gene-wise PCA")
 points( myset_ipc[,c(1,2)] , pch=19 , col="red"  )
 
