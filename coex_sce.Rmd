@@ -116,6 +116,7 @@ dim(se)
 se <- as.matrix(acast(se, V1~V2, value.var="V3"))
 dim(se)
 
+
 ```
 
 ## Aggregate SRA runs to experiments
@@ -133,28 +134,6 @@ rm(sesrx,srx)
 
 se[1:5,1:6]
 dim(se)
-
-```
-
-## PCA analysis
-
-No need to scale the data first.
-
-```{r,pca1}
-
-pc <- cmdscale(dist(t(se)),k=10)
-barplot(colMeans(abs(pc)),names.arg=1:ncol(pc), main="screeplot on samples")
-XMIN = min(pc[,1])*1.1
-XMAX = max(pc[,1])*1.1
-plot(pc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="sample-wise PCA")
-text(pc[,c(1,2)] , labels=colnames(se) )
-
-ipc <- cmdscale(dist(se),k=10)
-barplot(colMeans(abs(ipc)),names.arg=1:ncol(ipc), main="screeplot on genes")
-XMIN = min(ipc[,1])*1.1
-XMAX = max(ipc[,1])*1.1
-plot(ipc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="gene-wise PCA")
-text(ipc[,c(1,2)] , labels=rownames(se) )
 
 ```
 
@@ -194,37 +173,68 @@ names(sets) <- gos
 
 ```{r,av3}
 
-candidates <- lapply(sets[4], function(myset) {
-  # extract data related to this set
-  myset_nse <- nse[which(rownames(nse) %in% myset),]
-  myset_tnse <- t(myset_nse)
-  # calculate mean of the set
-  #myset_mean <- rowMeans(myset_tnse)
-  myset_mean <- apply(myset_tnse,1,median)
-  myset_nsem <- rbind(myset_mean,myset_nse)
-  myset_tnsem <- t(myset_nsem)
-  myset_tnsem_cor <- as.data.frame(correlate(myset_tnsem))
-  rownames(myset_tnsem_cor) <- myset_tnsem_cor[,1]
-  myset_tnsem_cor[,1] = NULL
-  #heatmap.2(as.matrix(myset_tnsem_cor),trace="none",scale="none")
-  #hist(as.matrix(myset_tnsem_cor))
-  #hist(as.matrix(myset_tnsem_cor[,1]))
-  #par(mfrow=c(2,1))
-  #hist(as.matrix(tnse_cor),xlim=c(-0.2,1))
-  #tmp <- myset_tnsem_cor[,-1] 
-  #tmp <- tmp[-1,] 
-  #hist(as.matrix(tmp),xlim=c(-0.2,1))
-  res <- apply(nse, 1, function(x) { cor(x,myset_mean) })
-  # get the 3rd quartile
-  setq3 <- summary(res[which(names(res) %in% myset)])[5]
-  cand <- res[which(! names(res) %in% myset)]
-  cand <- cand[which(cand > setq3)]
+candidates <- lapply(sets, function(myset) {
+
+  #check len
+  mylen=length(which(rownames(nse) %in% myset))
+  if (mylen<10) {
+    cand=NULL
+  } else {
+    # extract data related to this set
+    myset_nse <- nse[which(rownames(nse) %in% myset),]
+    myset_tnse <- t(myset_nse)
+    # calculate mean of the set
+    #myset_mean <- rowMeans(myset_tnse)
+    myset_mean <- apply(myset_tnse,1,median)
+    myset_nsem <- rbind(myset_mean,myset_nse)
+    myset_tnsem <- t(myset_nsem)
+    myset_tnsem_cor <- as.data.frame(correlate(myset_tnsem))
+    rownames(myset_tnsem_cor) <- myset_tnsem_cor[,1]
+    myset_tnsem_cor[,1] = NULL
+    #heatmap.2(as.matrix(myset_tnsem_cor),trace="none",scale="none")
+    #hist(as.matrix(myset_tnsem_cor))
+    #hist(as.matrix(myset_tnsem_cor[,1]))
+    #par(mfrow=c(2,1))
+    #hist(as.matrix(tnse_cor),xlim=c(-0.2,1))
+    #tmp <- myset_tnsem_cor[,-1] 
+    #tmp <- tmp[-1,] 
+    #hist(as.matrix(tmp),xlim=c(-0.2,1))
+    res <- apply(nse, 1, function(x) { cor(x,myset_mean) })
+    # get the 3rd quartile
+    setq3 <- summary(res[which(names(res) %in% myset)])[5]
+    cand <- res[which(! names(res) %in% myset)]
+    cand <- cand[which(cand > setq3)]
+  }
   return(cand)
 })
 
 names(candidates) <- gos
 
 lapply(candidate, write, "candidates.txt", append=TRUE, ncolumns=10000)
+
+```
+
+
+
+## PCA analysis
+
+No need to scale the data first.
+
+```{r,pca1}
+
+pc <- cmdscale(dist(t(se)),k=10)
+barplot(colMeans(abs(pc)),names.arg=1:ncol(pc), main="screeplot on samples")
+XMIN = min(pc[,1])*1.1
+XMAX = max(pc[,1])*1.1
+plot(pc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="sample-wise PCA")
+text(pc[,c(1,2)] , labels=colnames(se) )
+
+ipc <- cmdscale(dist(se),k=10)
+barplot(colMeans(abs(ipc)),names.arg=1:ncol(ipc), main="screeplot on genes")
+XMIN = min(ipc[,1])*1.1
+XMAX = max(ipc[,1])*1.1
+plot(ipc[,c(1,2)] , xlab="PC1", ylab="PC2", type = "n" , xlim=c(XMIN,XMAX) , main="gene-wise PCA")
+text(ipc[,c(1,2)] , labels=rownames(se) )
 
 ```
 
